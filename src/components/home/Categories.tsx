@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Palette, Code2, TrendingUp, Users, ArrowRight } from 'lucide-react';
-import { categories } from '@/mock/tools';
+import { useStore } from '@/store/useStore';
 
 const iconMap: Record<string, typeof Palette> = {
   Palette,
@@ -11,6 +11,7 @@ const iconMap: Record<string, typeof Palette> = {
 };
 
 export default function Categories() {
+  const categories = useStore((s) => s.categories);
   return (
     <section className="py-24 bg-dark-950 relative">
       <div className="absolute inset-0 bg-gradient-to-b from-dark-900/50 to-transparent" />

@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, Zap, User, Check } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 export default function Register() {
-  const { register } = useStore();
+  const { register, authError, clearAuthError } = useStore();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,28 +20,29 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    clearAuthError();
+
     if (formData.password !== formData.confirmPassword) {
       setError('两次输入的密码不匹配');
       return;
     }
-    
+
     if (formData.password.length < 8) {
       setError('密码长度至少为8个字符');
       return;
     }
-    
+
+    setError('');
     setIsLoading(true);
-    
+
     const success = await register(formData.name, formData.email, formData.password);
-    
+
     if (success) {
       navigate('/');
     } else {
-      setError('注册失败，请检查输入信息');
+      setError(authError || '注册失败，请检查输入信息');
     }
-    
+
     setIsLoading(false);
   };
 
@@ -194,6 +195,11 @@ export default function Register() {
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
                 {error}
+              </div>
+            )}
+            {!error && authError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                {authError}
               </div>
             )}
 

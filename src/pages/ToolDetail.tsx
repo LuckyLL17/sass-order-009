@@ -1,37 +1,76 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  Star, 
-  Users, 
-  Check, 
-  X, 
-  ChevronLeft, 
+import {
+  ArrowLeft,
+  Star,
+  Users,
+  Check,
+  X,
+  ChevronLeft,
   ChevronRight,
   Shield,
   Zap,
   Clock,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
-import { tools, categories } from '@/mock/tools';
+import { toolsApi } from '@/api/services';
+import { ApiRequestError } from '@/api/client';
 import { useStore } from '@/store/useStore';
 import ToolCard from '@/components/ToolCard';
-import type { Plan, PlanPeriod } from '@/types';
+import type { Tool, Plan, PlanPeriod } from '@/types';
 
 export default function ToolDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addSubscription } = useStore();
+  const { addSubscription, isAuthenticated, categories } = useStore();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [currentScreenshot, setCurrentScreenshot] = useState(0);
   const [isYearly, setIsYearly] = useState(false);
 
-  const tool = tools.find(t => t.id === id);
+  const [tool, setTool] = useState<Tool | null>(null);
+  const [related, setRelated] = useState<Tool[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  if (!tool) {
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setSelectedPlan(null);
+    setError('');
+    toolsApi
+      .detail(id!)
+      .then((data) => {
+        if (cancelled) return;
+        setTool(data.tool);
+        setRelated(data.related);
+      })
+      .catch((err) => {
+        if (!cancelled && err instanceof ApiRequestError && err.status === 404) setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark-950 pt-24 flex items-center justify-center">
+        <p className="text-gray-400">加载中...</p>
+      </div>
+    );
+  }
+
+  if (notFound || !tool) {
     return (
       <div className="min-h-screen bg-dark-950 pt-24 flex items-center justify-center">
         <div className="text-center">
@@ -44,30 +83,32 @@ export default function ToolDetail() {
     );
   }
 
-  const categoryInfo = categories.find(c => c.id === tool.category);
-  const relatedTools = tools.filter(t => t.category === tool.category && t.id !== tool.id).slice(0, 3);
+  const categoryInfo = categories.find((c) => c.id === tool.category);
 
-  const handleSubscribe = () => {
+  const yearlyPrice = (plan: Plan) => Math.round(plan.price * 12 * 0.8);
+
+  const handleSubscribe = async () => {
     if (!selectedPlan) return;
-    
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/tool/${tool.id}` } });
+      return;
+    }
+
     const period: PlanPeriod = isYearly ? 'yearly' : 'monthly';
-    const newSubscription = {
-      id: `sub-${Date.now()}`,
-      toolId: tool.id,
-      toolName: tool.name,
-      toolLogo: tool.logo,
-      planName: selectedPlan.name,
-      price: isYearly ? Math.round(selectedPlan.price * 12 * 0.8) : selectedPlan.price,
-      period,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + (isYearly ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'active' as const,
-      autoRenew: true,
-    };
-    
-    addSubscription(newSubscription);
-    setShowSubscribeModal(false);
-    navigate('/subscriptions');
+    setSubmitting(true);
+    setError('');
+    try {
+      // 前端生成幂等键，防止双击/重试造成重复订阅
+      const idempotencyKey = `sub-${tool.id}-${selectedPlan.id}-${period}-${Date.now()}`;
+      await addSubscription({ planId: selectedPlan.id, period }, idempotencyKey);
+      setShowSubscribeModal(false);
+      navigate('/subscriptions');
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : '订阅失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const nextScreenshot = () => {
@@ -140,47 +181,49 @@ export default function ToolDetail() {
             ))}
           </div>
 
-          <div className="relative mb-12">
-            <div className="aspect-video rounded-2xl overflow-hidden bg-dark-900 border border-gray-800">
-              <AnimatePresence mode="wait">
-                <motion.img
-                  key={currentScreenshot}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  src={tool.screenshots[currentScreenshot]}
-                  alt={`${tool.name} 截图 ${currentScreenshot + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </AnimatePresence>
-            </div>
-            
-            <button
-              onClick={prevScreenshot}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-dark-900/80 backdrop-blur-sm border border-gray-700 flex items-center justify-center text-white hover:bg-dark-900 transition-all"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button
-              onClick={nextScreenshot}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-dark-900/80 backdrop-blur-sm border border-gray-700 flex items-center justify-center text-white hover:bg-dark-900 transition-all"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
+          {tool.screenshots.length > 0 && (
+            <div className="relative mb-12">
+              <div className="aspect-video rounded-2xl overflow-hidden bg-dark-900 border border-gray-800">
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={currentScreenshot}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    src={tool.screenshots[currentScreenshot]}
+                    alt={`${tool.name} 截图 ${currentScreenshot + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </AnimatePresence>
+              </div>
 
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-              {tool.screenshots.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentScreenshot(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index === currentScreenshot ? 'bg-primary-500 w-6' : 'bg-gray-600 hover:bg-gray-500'
-                  }`}
-                />
-              ))}
+              <button
+                onClick={prevScreenshot}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-dark-900/80 backdrop-blur-sm border border-gray-700 flex items-center justify-center text-white hover:bg-dark-900 transition-all"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={nextScreenshot}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-dark-900/80 backdrop-blur-sm border border-gray-700 flex items-center justify-center text-white hover:bg-dark-900 transition-all"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {tool.screenshots.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentScreenshot(index)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      index === currentScreenshot ? 'bg-primary-500 w-6' : 'bg-gray-600 hover:bg-gray-500'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
@@ -292,7 +335,7 @@ export default function ToolDetail() {
                       </div>
                       <div className="text-right">
                         <span className="text-2xl font-bold text-white">
-                          ¥{isYearly ? Math.round(plan.price * 12 * 0.8) : plan.price}
+                          ¥{isYearly ? yearlyPrice(plan) : plan.price}
                         </span>
                         <span className="text-gray-500 text-sm">/{isYearly ? '年' : '月'}</span>
                       </div>
@@ -310,7 +353,7 @@ export default function ToolDetail() {
               </div>
 
               <button
-                onClick={() => setShowSubscribeModal(true)}
+                onClick={() => (isAuthenticated ? setShowSubscribeModal(true) : navigate('/login', { state: { from: `/tool/${tool.id}` } }))}
                 disabled={!selectedPlan}
                 className={`w-full py-4 rounded-xl font-medium transition-all ${
                   selectedPlan
@@ -318,7 +361,11 @@ export default function ToolDetail() {
                     : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {selectedPlan ? `订阅 ${selectedPlan.name} 方案` : '请选择订阅方案'}
+                {!isAuthenticated
+                  ? '登录后订阅'
+                  : selectedPlan
+                    ? `订阅 ${selectedPlan.name} 方案`
+                    : '请选择订阅方案'}
               </button>
 
               <p className="text-center text-sm text-gray-500 mt-4">
@@ -328,7 +375,7 @@ export default function ToolDetail() {
           </div>
         </div>
 
-        {relatedTools.length > 0 && (
+        {related.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -336,7 +383,7 @@ export default function ToolDetail() {
           >
             <h2 className="text-3xl font-bold text-white mb-8">相关工具</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {relatedTools.map((relatedTool) => (
+              {related.map((relatedTool) => (
                 <ToolCard key={relatedTool.id} tool={relatedTool} />
               ))}
             </div>
@@ -354,7 +401,7 @@ export default function ToolDetail() {
           >
             <div
               className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-              onClick={() => setShowSubscribeModal(false)}
+              onClick={() => !submitting && setShowSubscribeModal(false)}
             />
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -364,7 +411,8 @@ export default function ToolDetail() {
             >
               <button
                 onClick={() => setShowSubscribeModal(false)}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5"
+                disabled={submitting}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 disabled:opacity-50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -395,23 +443,32 @@ export default function ToolDetail() {
                 <div className="flex items-center justify-between pt-3 border-t border-gray-700">
                   <span className="text-gray-400">应付金额</span>
                   <span className="text-2xl font-bold gradient-text">
-                    ¥{selectedPlan ? (isYearly ? Math.round(selectedPlan.price * 12 * 0.8) : selectedPlan.price) : 0}
+                    ¥{selectedPlan ? (isYearly ? yearlyPrice(selectedPlan) : selectedPlan.price) : 0}
                   </span>
                 </div>
               </div>
 
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {error}
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSubscribeModal(false)}
-                  className="flex-1 btn-outline"
+                  disabled={submitting}
+                  className="flex-1 btn-outline disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleSubscribe}
-                  className="flex-1 btn-primary"
+                  disabled={submitting}
+                  className="flex-1 btn-primary disabled:opacity-50"
                 >
-                  确认订阅
+                  {submitting ? '提交中...' : '确认订阅'}
                 </button>
               </div>
             </motion.div>

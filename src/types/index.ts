@@ -49,6 +49,7 @@ export interface BillItem {
   name: string;
   quantity: number;
   price: number;
+  toolId?: string;
 }
 
 export interface Bill {
@@ -75,6 +76,9 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  phone?: string;
+  location?: string;
+  bio?: string;
   teamId?: string;
   teamRole?: TeamRole;
 }

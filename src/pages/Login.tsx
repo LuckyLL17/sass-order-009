@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Zap } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, Zap, AlertCircle } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 export default function Login() {
-  const { login } = useStore();
+  const { login, authError, clearAuthError } = useStore();
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { from?: string } };
+  const redirectTo = location.state?.from || '/';
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,13 +17,13 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     const success = await login(email, password);
-    
+
     if (success) {
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     }
-    
+
     setIsLoading(false);
   };
 
@@ -29,10 +31,10 @@ export default function Login() {
     <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-hero-pattern" />
       <div className="absolute inset-0 bg-grid opacity-20" />
-      
+
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl animate-pulse-slow" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-secondary-500/20 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -49,6 +51,13 @@ export default function Login() {
             <p className="text-gray-400">登录您的账户，继续使用 SubHub</p>
           </div>
 
+          {authError && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {authError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label">邮箱地址</label>
@@ -57,7 +66,10 @@ export default function Login() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearAuthError();
+                  }}
                   placeholder="your@email.com"
                   className="input pl-12"
                   required
@@ -77,7 +89,10 @@ export default function Login() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearAuthError();
+                  }}
                   placeholder="••••••••"
                   className="input pl-12 pr-12"
                   required
@@ -111,6 +126,13 @@ export default function Login() {
               {isLoading ? '登录中...' : '登录'}
             </button>
           </form>
+
+          <div className="mt-6 p-3 bg-dark-900/60 border border-gray-800 rounded-lg text-center">
+            <p className="text-xs text-gray-500">演示账户（种子数据）</p>
+            <p className="text-sm text-gray-300 mt-1">
+              demo@subhub.local / demo1234
+            </p>
+          </div>
 
           <p className="text-center text-gray-400 mt-8">
             还没有账户？{' '}

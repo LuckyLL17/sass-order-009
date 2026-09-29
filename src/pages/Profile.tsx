@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Lock, 
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Lock,
   Shield,
   Bell,
   Eye,
@@ -18,6 +18,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
 import { loginDevices } from '@/mock/user';
 import { cn } from '@/lib/utils';
@@ -41,10 +42,24 @@ export default function Profile() {
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '138****8888',
-    location: '北京市',
-    bio: '热爱技术，专注于产品设计和用户体验。致力于通过工具提升团队效率。',
+    phone: user?.phone || '138****8888',
+    location: user?.location || '北京市',
+    bio: user?.bio || '热爱技术，专注于产品设计和用户体验。致力于通过工具提升团队效率。',
   });
+
+  // 用户信息在 bootstrap 恢复会话后到达，同步到表单
+  useEffect(() => {
+    if (user) {
+      setProfileForm((prev) => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+        location: user.location || prev.location,
+        bio: user.bio || prev.bio,
+      }));
+    }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
@@ -75,14 +90,16 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     setSaveStatus('saving');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    updateUserProfile({
+
+    const ok = await updateUserProfile({
       name: profileForm.name,
       email: profileForm.email,
+      phone: profileForm.phone,
+      location: profileForm.location,
+      bio: profileForm.bio,
     });
-    
-    setSaveStatus('success');
+
+    setSaveStatus(ok ? 'success' : 'error');
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
@@ -105,23 +122,21 @@ export default function Profile() {
   const handleChangePassword = async () => {
     setPasswordError('');
     setPasswordStatus('saving');
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError('两次输入的新密码不匹配');
       setPasswordStatus('error');
       return;
     }
-    
+
     if (passwordForm.newPassword.length < 8) {
       setPasswordError('密码长度至少为8个字符');
       setPasswordStatus('error');
       return;
     }
-    
+
     const success = await changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-    
+
     if (success) {
       setPasswordStatus('success');
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -132,10 +147,12 @@ export default function Profile() {
     }
   };
 
-  const handleNotificationToggle = (key: keyof typeof notificationSettings) => {
-    updateNotificationSettings({
-      [key]: !notificationSettings[key],
-    });
+  const handleNotificationToggle = async (key: keyof typeof notificationSettings) => {
+    try {
+      await updateNotificationSettings({ [key]: !notificationSettings[key] });
+    } catch {
+      // store 已回滚，错误已由 API 层统一处理
+    }
   };
 
   const notificationItems = [
@@ -151,7 +168,10 @@ export default function Profile() {
       <div className="min-h-screen bg-dark-950 pt-24 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-white mb-4">请先登录</h2>
-          <p className="text-gray-400">登录后可查看和编辑个人信息</p>
+          <p className="text-gray-400 mb-6">登录后可查看和编辑个人信息</p>
+          <Link to="/login" className="btn-primary">
+            前往登录
+          </Link>
         </div>
       </div>
     );

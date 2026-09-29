@@ -1,24 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { 
-  CreditCard, 
-  History, 
-  Wallet, 
-  PieChart, 
+import {
+  CreditCard,
+  History,
+  Wallet,
+  PieChart,
   Download,
   Plus,
   TrendingUp,
   Calendar,
   Receipt
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart as RechartsPie,
   Pie,
@@ -27,7 +27,8 @@ import {
 } from 'recharts';
 import SubscriptionCard from '@/components/SubscriptionCard';
 import { useStore } from '@/store/useStore';
-import { bills, monthlySpending, categorySpending } from '@/mock/subscriptions';
+import { subscriptionsApi } from '@/api/services';
+import type { Bill, MonthlySpending, CategorySpending } from '@/types';
 import { cn } from '@/lib/utils';
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
@@ -35,21 +36,89 @@ const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 type TabType = 'active' | 'history' | 'billing';
 
 export default function Subscriptions() {
-  const { subscriptions, downloadInvoice } = useStore();
+  const { subscriptions, isAuthenticated } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [monthlySpending, setMonthlySpending] = useState<MonthlySpending[]>([]);
+  const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    Promise.allSettled([subscriptionsApi.bills(), subscriptionsApi.stats()]).then(
+      ([billsResult, statsResult]) => {
+        if (billsResult.status === 'fulfilled') setBills(billsResult.value);
+        if (statsResult.status === 'fulfilled') {
+          setMonthlySpending(statsResult.value.monthlySpending);
+          setCategorySpending(statsResult.value.categorySpending);
+        }
+      }
+    );
+  }, [isAuthenticated, subscriptions.length]);
 
   const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
   const inactiveSubscriptions = subscriptions.filter(s => s.status !== 'active');
-  
-  const totalMonthlySpending = activeSubscriptions.reduce((sum, sub) => sum + sub.price, 0);
+
+  // 月支出：月付按价格计，年付换算为月均（年价 / 12）
+  const totalMonthlySpending = activeSubscriptions.reduce(
+    (sum, sub) => sum + (sub.period === 'yearly' ? sub.price / 12 : sub.price),
+    0
+  );
   const yearlySavings = totalMonthlySpending * 12 * 0.3;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-dark-950 pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-dark-800 flex items-center justify-center">
+            <CreditCard className="w-10 h-10 text-gray-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">登录后查看您的订阅</h2>
+          <p className="text-gray-400 mb-6">登录后可管理订阅、账单与支出分析</p>
+          <Link to="/login" className="btn-primary">
+            前往登录
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'active' as TabType, label: '我的订阅', icon: CreditCard, count: activeSubscriptions.length },
     { id: 'history' as TabType, label: '历史记录', icon: History, count: inactiveSubscriptions.length },
     { id: 'billing' as TabType, label: '账单管理', icon: Wallet, count: bills.length },
   ];
+
+  const downloadBillInvoice = (bill: Bill) => {
+    const lines = bill.items
+      .map((item) => `${item.name} x${item.quantity}  ¥${item.price * item.quantity}`)
+      .join('\n');
+    const content = `
+发票
+=====================================
+发票编号: INV-${bill.id.toUpperCase()}
+账单日期: ${bill.date}
+支付状态: ${bill.status === 'paid' ? '已支付' : bill.status === 'pending' ? '待支付' : '支付失败'}
+
+费用明细:
+=====================================
+${lines}
+=====================================
+总计: ¥${bill.amount}
+
+感谢您使用 SubHub!
+    `.trim();
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `发票-${bill.date}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-dark-950 pt-24">
@@ -343,7 +412,7 @@ export default function Subscriptions() {
                           <button
                             onClick={() => {
                               setDownloadingId(bill.id);
-                              downloadInvoice(subscriptions[0]?.id || '');
+                              downloadBillInvoice(bill);
                               setTimeout(() => setDownloadingId(null), 1000);
                             }}
                             disabled={downloadingId === bill.id}

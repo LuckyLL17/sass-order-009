@@ -1,0 +1,168 @@
+/**
+ * 种子数据：工具市场目录（与原前端 mock 保持一致）
+ */
+export const seedTools = [
+  {
+    name: 'Figma',
+    description: '协作式界面设计工具，让团队成员实时协作完成UI/UX设计',
+    category: 'design',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=figma%20logo%20minimal%20design%20gradient&image_size=square',
+    rating: 4.9,
+    usersCount: 125000,
+    tags: ['UI设计', '原型', '协作'],
+    features: ['实时协作编辑', '组件库管理', '原型交互动效', '设计系统支持', '开发人员模式', '版本历史记录'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=figma%20design%20interface%20dark%20theme%20ui%20ux&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=figma%20collaboration%20workspace%20multiple%20users&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=figma%20component%20library%20design%20system&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'starter', name: 'Starter', price: 0, features: ['3个文件', '基础组件', '2个编辑者'] },
+      { planKey: 'professional', name: 'Professional', price: 45, recommended: true, features: ['无限文件', '高级组件', '无限编辑者', '团队库', '版本历史'] },
+      { planKey: 'organization', name: 'Organization', price: 90, features: ['所有专业功能', 'SSO单点登录', '高级分析', '专属支持'] },
+    ],
+  },
+  {
+    name: 'GitHub Pro',
+    description: '全球最大的代码托管平台，专业版提供高级协作和安全功能',
+    category: 'development',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=github%20logo%20minimal%20dark%20theme&image_size=square',
+    rating: 4.8,
+    usersCount: 89000,
+    tags: ['代码托管', 'CI/CD', '项目管理'],
+    features: ['无限私有仓库', 'GitHub Actions CI/CD', '代码审查工具', '安全漏洞扫描', '项目看板', 'Wiki文档'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=github%20repository%20dashboard%20dark%20mode&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=github%20actions%20workflow%20ci%20cd&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=github%20pull%20request%20code%20review&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'free', name: 'Free', price: 0, features: ['无限公共仓库', '500MB存储', '社区支持'] },
+      { planKey: 'pro', name: 'Pro', price: 32, recommended: true, features: ['无限私有仓库', '2GB存储', '高级支持', '代码审查'] },
+      { planKey: 'team', name: 'Team', price: 68, features: ['所有Pro功能', '团队管理', 'SAML SSO', '审计日志'] },
+    ],
+  },
+  {
+    name: 'Notion',
+    description: '一体化的工作空间，融合笔记、文档、数据库和项目管理',
+    category: 'collaboration',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=notion%20logo%20minimal%20black%20white&image_size=square',
+    rating: 4.7,
+    usersCount: 156000,
+    tags: ['笔记', '项目管理', '知识库'],
+    features: ['块级编辑', '数据库视图', '模板市场', '团队协作', 'API集成', '离线支持'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=notion%20workspace%20dashboard%20productivity&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=notion%20database%20table%20view%20project%20management&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=notion%20team%20collaboration%20workspace&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'free', name: 'Free', price: 0, features: ['无限页面', '5MB上传限制', '基础集成'] },
+      { planKey: 'plus', name: 'Plus', price: 28, recommended: true, features: ['无限上传', '版本历史', '优先支持', '高级块'] },
+      { planKey: 'business', name: 'Business', price: 58, features: ['所有Plus功能', 'SSO', '高级分析', '专属客户经理'] },
+    ],
+  },
+  {
+    name: 'SEMrush',
+    description: '全方位的数字营销工具套件，助力SEO、内容营销和竞争分析',
+    category: 'marketing',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=semrush%20logo%20orange%20gradient%20marketing&image_size=square',
+    rating: 4.6,
+    usersCount: 67000,
+    tags: ['SEO', '关键词研究', '竞品分析'],
+    features: ['关键词研究', '网站审计', '竞品分析', '内容优化', '社交媒体管理', 'PPC广告分析'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=semrush%20seo%20dashboard%20analytics%20marketing&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=semrush%20keyword%20research%20tool%20interface&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=semrush%20competitor%20analysis%20report&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'pro', name: 'Pro', price: 129, features: ['5个项目', '10000关键词', '基础报告'] },
+      { planKey: 'guru', name: 'Guru', price: 249, recommended: true, features: ['50个项目', '50000关键词', '高级分析', '内容模板'] },
+      { planKey: 'business', name: 'Business', price: 499, features: ['所有Guru功能', 'API访问', '白标报告', '培训服务'] },
+    ],
+  },
+  {
+    name: 'VS Code Pro',
+    description: '专业版代码编辑器，集成AI辅助、高级调试和团队协作功能',
+    category: 'development',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vscode%20logo%20blue%20gradient%20minimal&image_size=square',
+    rating: 4.9,
+    usersCount: 234000,
+    tags: ['代码编辑', 'AI编程', '调试'],
+    features: ['智能代码补全', 'AI结对编程', '高级调试器', 'Git集成', '远程开发', '插件市场'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vscode%20code%20editor%20dark%20theme%20programming&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vscode%20ai%20copilot%20code%20completion&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vscode%20debugger%20interface%20breakpoints&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'free', name: 'Free', price: 0, features: ['基础编辑', '核心调试', '社区插件'] },
+      { planKey: 'pro', name: 'Pro', price: 19, recommended: true, features: ['AI辅助编程', '高级调试', '优先更新', '专业主题'] },
+      { planKey: 'enterprise', name: 'Enterprise', price: 49, features: ['所有Pro功能', '企业安全', '集中管理', '专属支持'] },
+    ],
+  },
+  {
+    name: 'Adobe Creative Cloud',
+    description: '全套创意设计工具，包括Photoshop、Illustrator、Premiere等',
+    category: 'design',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adobe%20creative%20cloud%20logo%20colorful%20gradient&image_size=square',
+    rating: 4.8,
+    usersCount: 198000,
+    tags: ['图像处理', '视频剪辑', '平面设计'],
+    features: ['Photoshop', 'Illustrator', 'Premiere Pro', 'After Effects', 'Lightroom', 'Adobe Fonts'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adobe%20photoshop%20interface%20photo%20editing&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adobe%20illustrator%20graphic%20design%20workspace&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adobe%20premiere%20pro%20video%20editing%20timeline&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'single-app', name: 'Single App', price: 89, features: ['单个应用', '100GB云存储', '基础支持'] },
+      { planKey: 'all-apps', name: 'All Apps', price: 199, recommended: true, features: ['全部20+应用', '1TB云存储', '高级字体', 'Stock素材'] },
+      { planKey: 'teams', name: 'Creative Cloud for Teams', price: 349, features: ['所有功能', '团队管理', '企业级安全', '培训资源'] },
+    ],
+  },
+  {
+    name: 'Slack',
+    description: '团队沟通协作平台，集成多种工作工具，提升团队效率',
+    category: 'collaboration',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=slack%20logo%20colorful%20hashtag%20minimal&image_size=square',
+    rating: 4.7,
+    usersCount: 178000,
+    tags: ['即时通讯', '团队协作', '工具集成'],
+    features: ['频道组织', '视频会议', '文件共享', '1000+集成', '消息搜索', '移动端支持'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=slack%20interface%20team%20chat%20channels&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=slack%20video%20conference%20meeting&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=slack%20app%20integrations%20dashboard&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'free', name: 'Free', price: 0, features: ['10个应用集成', '5GB存储', '基础搜索'] },
+      { planKey: 'pro', name: 'Pro', price: 25, recommended: true, features: ['无限集成', '10GB/用户', '高级搜索', '视频会议'] },
+      { planKey: 'business-plus', name: 'Business+', price: 45, features: ['所有Pro功能', 'SAML SSO', '合规导出', '24/7支持'] },
+    ],
+  },
+  {
+    name: 'HubSpot',
+    description: '一站式CRM和营销自动化平台，助力企业获客和客户管理',
+    category: 'marketing',
+    logo: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hubspot%20logo%20orange%20gradient%20crm&image_size=square',
+    rating: 4.5,
+    usersCount: 92000,
+    tags: ['CRM', '营销自动化', '销售管理'],
+    features: ['客户关系管理', '营销自动化', '销售漏斗', '客户服务', '数据分析', '表单构建'],
+    screenshots: [
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hubspot%20crm%20dashboard%20sales%20pipeline&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hubspot%20marketing%20automation%20workflow&image_size=landscape_16_9',
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=hubspot%20analytics%20report%20dashboard&image_size=landscape_16_9',
+    ],
+    plans: [
+      { planKey: 'starter', name: 'Starter', price: 49, features: ['基础CRM', '邮件营销', '表单工具'] },
+      { planKey: 'professional', name: 'Professional', price: 179, recommended: true, features: ['营销自动化', 'A/B测试', '高级报告', '多触点归因'] },
+      { planKey: 'enterprise', name: 'Enterprise', price: 499, features: ['所有功能', '自定义对象', '高级安全', '专属成功经理'] },
+    ],
+  },
+];
+
+export const DEFAULT_AVATAR =
+  'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=professional%20user%20avatar%20portrait%20simple%20minimal&image_size=square';

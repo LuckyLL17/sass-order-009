@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Search, LayoutGrid, SlidersHorizontal, X, Star, Users, DollarSign, Check, Tag, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import ToolCard from '@/components/ToolCard';
 import { useStore } from '@/store/useStore';
-import { categories } from '@/mock/tools';
 import type { Category, SortOption, SubscriptionFilter, UsersRange } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +59,7 @@ export default function Market() {
     clearAllFilters,
     getAllTags,
     tools,
+    categories,
   } = useStore();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -192,7 +192,7 @@ export default function Market() {
     }
 
     return filters;
-  }, [selectedCategory, searchQuery, priceMin, priceMax, ratingMin, ratingMax, usersRange, selectedTags, subscriptionFilter, sortBy, handleCategoryChange, setSearchQuery, setPriceRange, setRatingRange, setUsersRange, toggleTag, setSubscriptionFilter, setSortBy]);
+  }, [selectedCategory, searchQuery, priceMin, priceMax, ratingMin, ratingMax, usersRange, selectedTags, subscriptionFilter, sortBy, categories, handleCategoryChange, setSearchQuery, setPriceRange, setRatingRange, setUsersRange, toggleTag, setSubscriptionFilter, setSortBy]);
 
   const handleClearFilters = () => {
     clearAllFilters();

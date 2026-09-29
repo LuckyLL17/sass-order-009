@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Users, ArrowRight } from 'lucide-react';
 import type { Tool } from '@/types';
-import { categories } from '@/mock/tools';
+import { useStore } from '@/store/useStore';
 
 interface ToolCardProps {
   tool: Tool;
@@ -10,7 +10,7 @@ interface ToolCardProps {
 }
 
 export default function ToolCard({ tool, index = 0 }: ToolCardProps) {
-  const categoryInfo = categories.find(c => c.id === tool.category);
+  const categoryInfo = useStore((s) => s.categories.find((c) => c.id === tool.category));
 
   return (
     <motion.div

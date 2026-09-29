@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { Zap } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Home from "@/pages/Home";
@@ -11,6 +13,7 @@ import Profile from "@/pages/Profile";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/NotFound";
+import { useStore } from "@/store/useStore";
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -176,10 +179,36 @@ function Layout() {
   );
 }
 
+function AppBootstrap({ children }: { children: React.ReactNode }) {
+  const authReady = useStore((s) => s.authReady);
+  const toolsLoading = useStore((s) => s.toolsLoading);
+  const bootstrap = useStore((s) => s.bootstrap);
+
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
+
+  // 首次加载工具目录 / 恢复登录会话时展示全局加载态
+  if (!authReady || toolsLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex flex-col items-center justify-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center animate-pulse">
+          <Zap className="w-8 h-8 text-white" />
+        </div>
+        <p className="text-gray-400 text-sm">正在加载 SubHub...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Router>
-      <Layout />
+      <AppBootstrap>
+        <Layout />
+      </AppBootstrap>
     </Router>
   );
 }
