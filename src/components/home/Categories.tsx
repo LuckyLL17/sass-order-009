@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Palette, Code2, TrendingUp, Users, ArrowRight } from 'lucide-react';
-import { categories } from '@/mock/tools';
+import { categories } from '@/lib/categories';
 
 const iconMap: Record<string, typeof Palette> = {
   Palette,

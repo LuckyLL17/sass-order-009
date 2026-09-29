@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import type { User, UserSubscription, Tool, Category, SortOption, SubscriptionFilter, UsersRange } from '@/types';
-import { userSubscriptions } from '@/mock/subscriptions';
-import { tools } from '@/mock/tools';
+import type {
+  SubscriptionDTO,
+  ToolDTO,
+  UserDTO,
+} from '@/types/api';
+import { api, TOKEN_KEY, ApiError } from '@/api/client';
 
 interface NotificationSettings {
   emailNotifications: boolean;
@@ -9,6 +13,31 @@ interface NotificationSettings {
   subscriptionReminders: boolean;
   marketingEmails: boolean;
   securityAlerts: boolean;
+}
+
+const defaultNotificationSettings: NotificationSettings = {
+  emailNotifications: true,
+  pushNotifications: true,
+  subscriptionReminders: true,
+  marketingEmails: false,
+  securityAlerts: true,
+};
+
+function toUser(dto: UserDTO): User {
+  return {
+    id: dto.id,
+    name: dto.name,
+    email: dto.email,
+    avatar: dto.avatar,
+  };
+}
+
+function toSubscription(dto: SubscriptionDTO): UserSubscription {
+  return { ...dto };
+}
+
+function toTool(dto: ToolDTO): Tool {
+  return { ...dto };
 }
 
 interface Store {
@@ -27,8 +56,12 @@ interface Store {
   subscriptionFilter: SubscriptionFilter;
   isAuthenticated: boolean;
   notificationSettings: NotificationSettings;
-  userPassword: string;
-  
+
+  // 加载状态
+  toolsLoading: boolean;
+  subscriptionsLoading: boolean;
+  bootstrapped: boolean;
+
   setUser: (user: User | null) => void;
   setSelectedCategory: (category: Category | 'all') => void;
   setSearchQuery: (query: string) => void;
@@ -41,33 +74,28 @@ interface Store {
   setSubscriptionFilter: (filter: SubscriptionFilter) => void;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  updateUserProfile: (updates: Partial<User>) => void;
+  logout: () => Promise<void>;
+  updateUserProfile: (updates: Partial<User> & { phone?: string; location?: string; bio?: string }) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
-  updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
-  addSubscription: (subscription: UserSubscription) => void;
-  cancelSubscription: (id: string) => void;
-  renewSubscription: (id: string) => void;
-  toggleAutoRenew: (id: string) => void;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
+  addSubscription: (subscription: UserSubscription) => Promise<void>;
+  createSubscription: (payload: { toolId: string; planId: string; period: 'monthly' | 'yearly' }) => Promise<UserSubscription>;
+  cancelSubscription: (id: string) => Promise<void>;
+  renewSubscription: (id: string) => Promise<void>;
+  toggleAutoRenew: (id: string) => Promise<void>;
   downloadInvoice: (id: string) => void;
   getFilteredTools: () => Tool[];
   clearAllFilters: () => void;
   getAllTags: () => string[];
   getPriceRange: () => { min: number; max: number };
+  bootstrap: () => Promise<void>;
+  loadSubscriptions: () => Promise<void>;
 }
-
-const defaultNotificationSettings: NotificationSettings = {
-  emailNotifications: true,
-  pushNotifications: true,
-  subscriptionReminders: true,
-  marketingEmails: false,
-  securityAlerts: true,
-};
 
 export const useStore = create<Store>((set, get) => ({
   user: null,
-  subscriptions: userSubscriptions,
-  tools: tools,
+  subscriptions: [],
+  tools: [],
   selectedCategory: 'all',
   searchQuery: '',
   sortBy: 'popular',
@@ -80,127 +108,158 @@ export const useStore = create<Store>((set, get) => ({
   subscriptionFilter: 'all',
   isAuthenticated: false,
   notificationSettings: defaultNotificationSettings,
-  userPassword: '',
+
+  toolsLoading: false,
+  subscriptionsLoading: false,
+  bootstrapped: false,
 
   setUser: (user) => set({ user }),
-  
+
   setSelectedCategory: (category) => set({ selectedCategory: category }),
-  
+
   setSearchQuery: (query) => set({ searchQuery: query }),
-  
+
   setSortBy: (sort) => set({ sortBy: sort }),
-  
+
   setPriceRange: (min, max) => set({ priceMin: min, priceMax: max }),
-  
+
   setRatingRange: (min, max) => set({ ratingMin: min, ratingMax: max }),
-  
+
   setUsersRange: (range) => set({ usersRange: range }),
-  
+
   setSelectedTags: (tags) => set({ selectedTags: tags }),
-  
+
   toggleTag: (tag) => set((state) => ({
     selectedTags: state.selectedTags.includes(tag)
       ? state.selectedTags.filter(t => t !== tag)
       : [...state.selectedTags, tag]
   })),
-  
+
   setSubscriptionFilter: (filter) => set({ subscriptionFilter: filter }),
-  
+
   login: async (email, password) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const { userPassword, user } = get();
-    
-    if (email && password) {
-      if (user && user.email === email && userPassword === password) {
-        set({ isAuthenticated: true });
-        return true;
-      }
-      
-      const newUser: User = {
-        id: 'user-' + Date.now(),
-        name: email.split('@')[0],
-        email: email,
-        avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=professional%20user%20avatar%20portrait%20simple%20minimal&image_size=square',
-      };
-      set({ user: newUser, isAuthenticated: true, userPassword: password });
-      return true;
-    }
-    return false;
+    const { token, user } = await api.login({ email, password });
+    localStorage.setItem(TOKEN_KEY, token);
+    set({ user: toUser(user), isAuthenticated: true });
+    // 登录成功后立即拉取该用户的持久化数据
+    await get().loadSubscriptions().catch(() => undefined);
+    api.getProfileMeta()
+      .then(({ settings }) =>
+        set({ notificationSettings: { ...defaultNotificationSettings, ...settings } })
+      )
+      .catch(() => undefined);
+    return true;
   },
-  
+
   register: async (name, email, password) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (name && email && password) {
-      const newUser: User = {
-        id: 'user-' + Date.now(),
-        name: name,
-        email: email,
-        avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=professional%20user%20avatar%20portrait%20simple%20minimal&image_size=square',
-      };
-      set({ user: newUser, isAuthenticated: true, userPassword: password });
-      return true;
-    }
-    return false;
+    const { token, user } = await api.register({ name, email, password });
+    localStorage.setItem(TOKEN_KEY, token);
+    set({ user: toUser(user), isAuthenticated: true, subscriptions: [] });
+    return true;
   },
-  
-  logout: () => set({ user: null, isAuthenticated: false }),
-  
-  updateUserProfile: (updates) =>
+
+  logout: async () => {
+    localStorage.removeItem(TOKEN_KEY);
+    set({
+      user: null,
+      isAuthenticated: false,
+      subscriptions: [],
+      notificationSettings: defaultNotificationSettings,
+      subscriptionFilter: 'all',
+    });
+  },
+
+  updateUserProfile: async (
+    updates: Partial<User> & { phone?: string; location?: string; bio?: string }
+  ) => {
+    const updated = await api.updateProfile(updates);
     set((state) => ({
-      user: state.user ? { ...state.user, ...updates } : null,
-    })),
-  
-  changePassword: async (oldPassword, newPassword) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const { userPassword } = get();
-    if (userPassword === oldPassword) {
-      set({ userPassword: newPassword });
-      return true;
-    }
-    return false;
+      user: state.user ? { ...state.user, ...toUser(updated) } : null,
+    }));
   },
-  
-  updateNotificationSettings: (settings) =>
+
+  changePassword: async (oldPassword, newPassword) => {
+    await api.changePassword({ oldPassword, newPassword });
+    return true;
+  },
+
+  updateNotificationSettings: async (settings) => {
+    // 乐观更新，失败时回滚
+    const previous = get().notificationSettings;
     set((state) => ({
       notificationSettings: { ...state.notificationSettings, ...settings },
-    })),
-  
-  addSubscription: (subscription) => 
+    }));
+    try {
+      const saved = await api.updateNotificationSettings(settings);
+      set({ notificationSettings: { ...defaultNotificationSettings, ...saved } });
+    } catch (err) {
+      set({ notificationSettings: previous });
+      throw err;
+    }
+  },
+
+  addSubscription: async (subscription) =>
     set((state) => ({ subscriptions: [...state.subscriptions, subscription] })),
-  
-  cancelSubscription: (id) =>
+
+  createSubscription: async (payload) => {
+    const dto = await api.createSubscription(payload);
+    const sub = toSubscription(dto);
+    set((state) => {
+      // 极端情况下替换同 id / 同工具的旧记录
+      const others = state.subscriptions.filter(
+        (s) => s.id !== sub.id && s.toolId !== sub.toolId
+      );
+      return { subscriptions: [sub, ...others] };
+    });
+    return sub;
+  },
+
+  cancelSubscription: async (id) => {
+    const dto = await api.cancelSubscription(id);
+    const updated = toSubscription(dto);
     set((state) => ({
-      subscriptions: state.subscriptions.map((sub) =>
-        sub.id === id ? { ...sub, status: 'cancelled' as const, autoRenew: false } : sub
-      ),
-    })),
-  
-  renewSubscription: (id) =>
+      subscriptions: state.subscriptions.map((sub) => (sub.id === id ? updated : sub)),
+    }));
+  },
+
+  renewSubscription: async (id) => {
+    const dto = await api.renewSubscription(id);
+    const updated = toSubscription(dto);
     set((state) => ({
-      subscriptions: state.subscriptions.map((sub) =>
-        sub.id === id 
-          ? { 
-              ...sub, 
-              status: 'active' as const, 
-              autoRenew: true,
-              startDate: new Date().toISOString().split('T')[0],
-              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            } 
-          : sub
-      ),
-    })),
-  
-  toggleAutoRenew: (id) =>
+      subscriptions: state.subscriptions.map((sub) => (sub.id === id ? updated : sub)),
+    }));
+  },
+
+  toggleAutoRenew: async (id) => {
+    const target = get().subscriptions.find((s) => s.id === id);
+    if (!target) return;
+    const next = !target.autoRenew;
+    // 乐观更新，失败回滚
     set((state) => ({
-      subscriptions: state.subscriptions.map((sub) =>
-        sub.id === id ? { ...sub, autoRenew: !sub.autoRenew } : sub
+      subscriptions: state.subscriptions.map((s) =>
+        s.id === id ? { ...s, autoRenew: next } : s
       ),
-    })),
-  
+    }));
+    try {
+      const dto = await api.setAutoRenew(id, next);
+      const updated = toSubscription(dto);
+      set((state) => ({
+        subscriptions: state.subscriptions.map((s) => (s.id === id ? updated : s)),
+      }));
+    } catch (err) {
+      set((state) => ({
+        subscriptions: state.subscriptions.map((s) =>
+          s.id === id ? { ...s, autoRenew: !next } : s
+        ),
+      }));
+      throw err;
+    }
+  },
+
   downloadInvoice: (id) => {
     const subscription = get().subscriptions.find(s => s.id === id);
     if (!subscription) return;
-    
+
     const invoiceContent = `
 发票
 =====================================
@@ -222,7 +281,7 @@ export const useStore = create<Store>((set, get) => ({
 
 感谢您使用 SubHub!
     `.trim();
-    
+
     const blob = new Blob([invoiceContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -233,23 +292,23 @@ export const useStore = create<Store>((set, get) => ({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   },
-  
+
   getFilteredTools: () => {
-    const { tools, selectedCategory, searchQuery, priceMin, priceMax, ratingMin, ratingMax, usersRange, selectedTags, subscriptionFilter, sortBy, subscriptions } = get();
-    
+    const { tools, selectedCategory, searchQuery, priceMin, priceMax, ratingMin, usersRange, selectedTags, subscriptionFilter, sortBy, subscriptions } = get();
+
     const filtered = tools.filter((tool) => {
       const matchesCategory = selectedCategory === 'all' || tool.category === selectedCategory;
-      
+
       const matchesSearch = !searchQuery ||
         tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tool.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
       const minPrice = Math.min(...tool.plans.map(p => p.price));
       const matchesPrice = minPrice >= priceMin && minPrice <= priceMax;
-      
-      const matchesRating = tool.rating >= ratingMin && tool.rating <= ratingMax;
-      
+
+      const matchesRating = tool.rating >= ratingMin;
+
       let matchesUsers = true;
       switch (usersRange) {
         case 'lt-10k':
@@ -265,10 +324,10 @@ export const useStore = create<Store>((set, get) => ({
           matchesUsers = tool.usersCount >= 100000;
           break;
       }
-      
+
       const matchesTags = selectedTags.length === 0 ||
         selectedTags.every(tag => tool.tags.includes(tag));
-      
+
       let matchesSubscription = true;
       const userSub = subscriptions.find(s => s.toolId === tool.id);
       switch (subscriptionFilter) {
@@ -282,10 +341,10 @@ export const useStore = create<Store>((set, get) => ({
           matchesSubscription = !!userSub && userSub.status === 'expired';
           break;
       }
-      
+
       return matchesCategory && matchesSearch && matchesPrice && matchesRating && matchesUsers && matchesTags && matchesSubscription;
     });
-    
+
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case 'rating':
@@ -306,7 +365,7 @@ export const useStore = create<Store>((set, get) => ({
       }
     });
   },
-  
+
   clearAllFilters: () => set({
     selectedCategory: 'all',
     searchQuery: '',
@@ -319,20 +378,72 @@ export const useStore = create<Store>((set, get) => ({
     selectedTags: [],
     subscriptionFilter: 'all',
   }),
-  
+
   getAllTags: () => {
     const { tools } = get();
     const tagSet = new Set<string>();
     tools.forEach(tool => tool.tags.forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet).sort();
   },
-  
+
   getPriceRange: () => {
     const { tools } = get();
+    if (tools.length === 0) return { min: 0, max: 1000 };
     const prices = tools.flatMap(tool => tool.plans.map(p => p.price));
     return {
       min: Math.min(...prices),
       max: Math.max(...prices),
     };
+  },
+
+  loadSubscriptions: async () => {
+    if (!localStorage.getItem(TOKEN_KEY)) return;
+    set({ subscriptionsLoading: true });
+    try {
+      const list = await api.listSubscriptions();
+      set({ subscriptions: list.map(toSubscription) });
+    } finally {
+      set({ subscriptionsLoading: false });
+    }
+  },
+
+  bootstrap: async () => {
+    // 工具数据（公开）与登录态恢复并行进行
+    set({ toolsLoading: true });
+    const toolsPromise = api
+      .listTools()
+      .then((list) => set({ tools: list.map(toTool) }))
+      .catch((err) => {
+        if (err instanceof ApiError || err instanceof Error) {
+          console.error('[bootstrap] 加载工具失败:', err.message);
+        }
+      })
+      .finally(() => set({ toolsLoading: false }));
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      try {
+        const { user } = await api.me();
+        set({ user: toUser(user), isAuthenticated: true });
+      } catch {
+        // token 失效：清理本地登录态，回到未登录状态
+        localStorage.removeItem(TOKEN_KEY);
+        set({ user: null, isAuthenticated: false });
+      }
+      if (get().isAuthenticated) {
+        await Promise.all([
+          get().loadSubscriptions().catch(() => undefined),
+          api
+            .getProfileMeta()
+            .then(({ settings }) =>
+              set({ notificationSettings: { ...defaultNotificationSettings, ...settings } })
+            )
+            .catch(() => undefined),
+        ]);
+      }
+    }
+
+    await toolsPromise;
+    set({ bootstrapped: true });
   },
 }));

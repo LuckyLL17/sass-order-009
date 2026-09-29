@@ -1,28 +1,35 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Zap } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { ApiError } from '@/api/client';
 
 export default function Login() {
   const { login } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    const success = await login(email, password);
-    
-    if (success) {
-      navigate('/');
+    setError('');
+
+    try {
+      await login(email.trim(), password);
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '登录失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -102,6 +109,12 @@ export default function Login() {
                 记住我
               </label>
             </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"

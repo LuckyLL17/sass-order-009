@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Zap, User, Check } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { ApiError } from '@/api/client';
 
 export default function Register() {
   const { register } = useStore();
@@ -33,16 +34,15 @@ export default function Register() {
     }
     
     setIsLoading(true);
-    
-    const success = await register(formData.name, formData.email, formData.password);
-    
-    if (success) {
+
+    try {
+      await register(formData.name.trim(), formData.email.trim(), formData.password);
       navigate('/');
-    } else {
-      setError('注册失败，请检查输入信息');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '注册失败，请检查输入信息');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

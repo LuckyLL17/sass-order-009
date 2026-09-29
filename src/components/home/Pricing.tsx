@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Check, Sparkles } from 'lucide-react';
-import { pricingPlans } from '@/mock/subscriptions';
+import { pricingPlans } from '@/lib/pricing';
 
 export default function Pricing() {
   return (

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, LayoutGrid, SlidersHorizontal, X, Star, Users, DollarSign, Check, Tag, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import ToolCard from '@/components/ToolCard';
 import { useStore } from '@/store/useStore';
-import { categories } from '@/mock/tools';
+import { categories } from '@/lib/categories';
 import type { Category, SortOption, SubscriptionFilter, UsersRange } from '@/types';
 import { cn } from '@/lib/utils';
 

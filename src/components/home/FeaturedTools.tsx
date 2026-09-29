@@ -2,9 +2,10 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import ToolCard from '@/components/ToolCard';
-import { tools } from '@/mock/tools';
+import { useStore } from '@/store/useStore';
 
 export default function FeaturedTools() {
+  const tools = useStore((s) => s.tools);
   const featuredTools = tools.slice(0, 4);
 
   return (

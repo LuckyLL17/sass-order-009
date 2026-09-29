@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  Star, 
-  Users, 
-  Check, 
-  X, 
-  ChevronLeft, 
+import {
+  ArrowLeft,
+  Star,
+  Users,
+  Check,
+  X,
+  ChevronLeft,
   ChevronRight,
   Shield,
   Zap,
@@ -15,20 +15,24 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
-import { tools, categories } from '@/mock/tools';
+import { categories } from '@/lib/categories';
 import { useStore } from '@/store/useStore';
 import ToolCard from '@/components/ToolCard';
 import type { Plan, PlanPeriod } from '@/types';
+import { ApiError } from '@/api/client';
 
 export default function ToolDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addSubscription } = useStore();
+  const { createSubscription, isAuthenticated } = useStore();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [currentScreenshot, setCurrentScreenshot] = useState(0);
   const [isYearly, setIsYearly] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
+  const tools = useStore((s) => s.tools);
   const tool = tools.find(t => t.id === id);
 
   if (!tool) {
@@ -47,27 +51,30 @@ export default function ToolDetail() {
   const categoryInfo = categories.find(c => c.id === tool.category);
   const relatedTools = tools.filter(t => t.category === tool.category && t.id !== tool.id).slice(0, 3);
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     if (!selectedPlan) return;
-    
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/tool/${tool.id}` } });
+      return;
+    }
+
     const period: PlanPeriod = isYearly ? 'yearly' : 'monthly';
-    const newSubscription = {
-      id: `sub-${Date.now()}`,
-      toolId: tool.id,
-      toolName: tool.name,
-      toolLogo: tool.logo,
-      planName: selectedPlan.name,
-      price: isYearly ? Math.round(selectedPlan.price * 12 * 0.8) : selectedPlan.price,
-      period,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + (isYearly ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'active' as const,
-      autoRenew: true,
-    };
-    
-    addSubscription(newSubscription);
-    setShowSubscribeModal(false);
-    navigate('/subscriptions');
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await createSubscription({ toolId: tool.id, planId: selectedPlan.id, period });
+      setShowSubscribeModal(false);
+      navigate('/subscriptions');
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : '订阅失败，请稍后重试'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const nextScreenshot = () => {
@@ -400,18 +407,29 @@ export default function ToolDetail() {
                 </div>
               </div>
 
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowSubscribeModal(false)}
-                  className="flex-1 btn-outline"
+                  onClick={() => {
+                    setShowSubscribeModal(false);
+                    setError('');
+                  }}
+                  disabled={isSubmitting}
+                  className="flex-1 btn-outline disabled:opacity-50"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleSubscribe}
-                  className="flex-1 btn-primary"
+                  disabled={isSubmitting}
+                  className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  确认订阅
+                  {isSubmitting ? '提交中...' : '确认订阅'}
                 </button>
               </div>
             </motion.div>

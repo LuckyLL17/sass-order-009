@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, RefreshCw, XCircle, CreditCard, Settings, Download, RotateCcw } from 'lucide-react';
 import type { UserSubscription } from '@/types';
 import { useStore } from '@/store/useStore';
+import { ApiError } from '@/api/client';
 import { cn } from '@/lib/utils';
 
 interface SubscriptionCardProps {
@@ -11,9 +12,12 @@ interface SubscriptionCardProps {
 }
 
 export default function SubscriptionCard({ subscription, index = 0 }: SubscriptionCardProps) {
-  const { cancelSubscription, toggleAutoRenew, renewSubscription, downloadInvoice } = useStore();
+  const { cancelSubscription, toggleAutoRenew, renewSubscription, downloadInvoice, isAuthenticated } = useStore();
   const [isRenewing, setIsRenewing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const statusConfig = {
     active: { label: '活跃中', className: 'badge-active' },
@@ -22,6 +26,29 @@ export default function SubscriptionCard({ subscription, index = 0 }: Subscripti
   };
 
   const status = statusConfig[subscription.status];
+
+  const runAction = async (action: () => Promise<void>, busy: (v: boolean) => void) => {
+    if (!isAuthenticated) return;
+    setActionError('');
+    busy(true);
+    try {
+      await action();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : '操作失败，请稍后重试');
+      setTimeout(() => setActionError(''), 3000);
+    } finally {
+      busy(false);
+    }
+  };
+
+  const handleCancel = () =>
+    runAction(() => cancelSubscription(subscription.id), setIsCancelling);
+
+  const handleToggleAutoRenew = () =>
+    runAction(() => toggleAutoRenew(subscription.id), setIsToggling);
+
+  const handleRenew = () =>
+    runAction(() => renewSubscription(subscription.id), setIsRenewing);
 
   return (
     <motion.div
@@ -50,7 +77,9 @@ export default function SubscriptionCard({ subscription, index = 0 }: Subscripti
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-dark-900/50 rounded-xl p-3">
-          <p className="text-gray-500 text-xs mb-1">月付金额</p>
+          <p className="text-gray-500 text-xs mb-1">
+            {subscription.period === 'yearly' ? '年付金额' : '月付金额'}
+          </p>
           <p className="text-xl font-bold text-white">¥{subscription.price}</p>
         </div>
         <div className="bg-dark-900/50 rounded-xl p-3">
@@ -71,31 +100,43 @@ export default function SubscriptionCard({ subscription, index = 0 }: Subscripti
         </div>
         <div className="flex items-center gap-2">
           <CreditCard className="w-4 h-4" />
-          <span>按月付费</span>
+          <span>{subscription.period === 'yearly' ? '按年付费' : '按月付费'}</span>
         </div>
       </div>
+
+      {actionError && (
+        <div className="mb-4 p-2.5 bg-red-500/10 border border-red-500/40 rounded-lg text-red-400 text-xs">
+          {actionError}
+        </div>
+      )}
 
       {subscription.status === 'active' && (
         <div className="space-y-3 pt-4 border-t border-gray-800">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => toggleAutoRenew(subscription.id)}
+              onClick={handleToggleAutoRenew}
+              disabled={isToggling}
               className={cn(
-                'flex-1 py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all',
+                'flex-1 py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50',
                 subscription.autoRenew
                   ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
                   : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
               )}
             >
-              <RefreshCw className="w-4 h-4" />
-              {subscription.autoRenew ? '关闭自动续费' : '开启自动续费'}
+              <RefreshCw className={cn('w-4 h-4', isToggling && 'animate-spin')} />
+              {isToggling
+                ? '处理中...'
+                : subscription.autoRenew
+                  ? '关闭自动续费'
+                  : '开启自动续费'}
             </button>
             <button
-              onClick={() => cancelSubscription(subscription.id)}
-              className="flex-1 py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+              onClick={handleCancel}
+              disabled={isCancelling}
+              className="flex-1 py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50"
             >
-              <XCircle className="w-4 h-4" />
-              取消订阅
+              <XCircle className={cn('w-4 h-4', isCancelling && 'animate-pulse')} />
+              {isCancelling ? '取消中...' : '取消订阅'}
             </button>
             <button className="p-2.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
               <Settings className="w-4 h-4" />
@@ -119,12 +160,7 @@ export default function SubscriptionCard({ subscription, index = 0 }: Subscripti
       {subscription.status !== 'active' && (
         <div className="space-y-3 pt-4 border-t border-gray-800">
           <button
-            onClick={async () => {
-              setIsRenewing(true);
-              await new Promise(resolve => setTimeout(resolve, 500));
-              renewSubscription(subscription.id);
-              setIsRenewing(false);
-            }}
+            onClick={handleRenew}
             disabled={isRenewing}
             className="w-full btn-primary text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >

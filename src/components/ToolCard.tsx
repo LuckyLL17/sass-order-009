@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, Users, ArrowRight } from 'lucide-react';
 import type { Tool } from '@/types';
-import { categories } from '@/mock/tools';
+import { categories } from '@/lib/categories';
 
 interface ToolCardProps {
   tool: Tool;

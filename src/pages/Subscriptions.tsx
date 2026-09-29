@@ -1,24 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { 
-  CreditCard, 
-  History, 
-  Wallet, 
-  PieChart, 
+import {
+  CreditCard,
+  History,
+  Wallet,
+  PieChart,
   Download,
   Plus,
   TrendingUp,
   Calendar,
   Receipt
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart as RechartsPie,
   Pie,
@@ -27,7 +27,8 @@ import {
 } from 'recharts';
 import SubscriptionCard from '@/components/SubscriptionCard';
 import { useStore } from '@/store/useStore';
-import { bills, monthlySpending, categorySpending } from '@/mock/subscriptions';
+import { api } from '@/api/client';
+import type { Bill, CategorySpending, MonthlySpending } from '@/types';
 import { cn } from '@/lib/utils';
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
@@ -35,14 +36,34 @@ const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 type TabType = 'active' | 'history' | 'billing';
 
 export default function Subscriptions() {
-  const { subscriptions, downloadInvoice } = useStore();
+  const { subscriptions, downloadInvoice, isAuthenticated, loadSubscriptions } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [monthlySpending, setMonthlySpending] = useState<MonthlySpending[]>([]);
+  const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    loadSubscriptions().catch(() => undefined);
+    api
+      .subscriptionStats()
+      .then((data) => {
+        setBills(data.bills);
+        setMonthlySpending(data.monthlySpending);
+        setCategorySpending(data.categorySpending);
+      })
+      .catch(() => undefined);
+  }, [isAuthenticated, loadSubscriptions]);
 
   const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
   const inactiveSubscriptions = subscriptions.filter(s => s.status !== 'active');
-  
-  const totalMonthlySpending = activeSubscriptions.reduce((sum, sub) => sum + sub.price, 0);
+
+  // 月支出仅按月付订阅累计；年付按折算月价（与后端统计口径一致）
+  const totalMonthlySpending = activeSubscriptions.reduce(
+    (sum, sub) => sum + (sub.period === 'yearly' ? sub.price / 12 : sub.price),
+    0
+  );
   const yearlySavings = totalMonthlySpending * 12 * 0.3;
 
   const tabs = [
@@ -67,11 +88,30 @@ export default function Subscriptions() {
           </p>
         </motion.div>
 
+        {!isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="card text-center py-16 mb-8"
+          >
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-dark-800 flex items-center justify-center">
+              <CreditCard className="w-10 h-10 text-gray-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">登录后查看您的订阅</h3>
+            <p className="text-gray-400 mb-6">订阅数据与账单会安全保存，刷新或更换设备后依然可见</p>
+            <div className="flex items-center justify-center gap-3">
+              <Link to="/login" className="btn-primary">去登录</Link>
+              <Link to="/register" className="btn-outline">免费注册</Link>
+            </div>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+          className={cn('grid grid-cols-1 md:grid-cols-3 gap-6 mb-8', !isAuthenticated && 'opacity-50 pointer-events-none')}
         >
           <div className="card">
             <div className="flex items-center gap-4">
@@ -342,8 +382,13 @@ export default function Subscriptions() {
                         <td className="py-4 px-4 text-right">
                           <button
                             onClick={() => {
+                              // 按账单首项匹配对应订阅生成发票
+                              const firstName = bill.items[0]?.name ?? '';
+                              const matched = subscriptions.find((s) =>
+                                firstName.startsWith(s.toolName)
+                              );
                               setDownloadingId(bill.id);
-                              downloadInvoice(subscriptions[0]?.id || '');
+                              downloadInvoice(matched?.id ?? subscriptions[0]?.id ?? '');
                               setTimeout(() => setDownloadingId(null), 1000);
                             }}
                             disabled={downloadingId === bill.id}

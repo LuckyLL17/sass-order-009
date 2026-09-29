@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { loginDevices } from '@/mock/user';
+import { ApiError } from '@/api/client';
 import { cn } from '@/lib/utils';
 
 type TabType = 'profile' | 'security' | 'notifications';
@@ -45,6 +46,21 @@ export default function Profile() {
     location: '北京市',
     bio: '热爱技术，专注于产品设计和用户体验。致力于通过工具提升团队效率。',
   });
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // 用户数据在 bootstrap 后可能晚于首次渲染，回填一次服务端资料
+  useEffect(() => {
+    if (user && !profileLoaded) {
+      setProfileForm((prev) => ({
+        name: user.name || prev.name,
+        email: user.email || prev.email,
+        phone: prev.phone,
+        location: prev.location,
+        bio: prev.bio,
+      }));
+      setProfileLoaded(true);
+    }
+  }, [user, profileLoaded]);
   
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
@@ -55,6 +71,7 @@ export default function Profile() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [passwordStatus, setPasswordStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [passwordError, setPasswordError] = useState('');
+  const [profileError, setProfileError] = useState('');
 
   const tabs = [
     { id: 'profile' as TabType, label: '个人信息', icon: User },
@@ -75,15 +92,22 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     setSaveStatus('saving');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    updateUserProfile({
-      name: profileForm.name,
-      email: profileForm.email,
-    });
-    
-    setSaveStatus('success');
-    setTimeout(() => setSaveStatus('idle'), 2000);
+    setProfileError('');
+
+    try {
+      await updateUserProfile({
+        name: profileForm.name,
+        email: profileForm.email,
+        phone: profileForm.phone,
+        location: profileForm.location,
+        bio: profileForm.bio,
+      });
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err) {
+      setSaveStatus('error');
+      setProfileError(err instanceof ApiError ? err.message : '保存失败，请稍后重试');
+    }
   };
 
   const handleCancelProfile = () => {
@@ -105,29 +129,26 @@ export default function Profile() {
   const handleChangePassword = async () => {
     setPasswordError('');
     setPasswordStatus('saving');
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError('两次输入的新密码不匹配');
       setPasswordStatus('error');
       return;
     }
-    
+
     if (passwordForm.newPassword.length < 8) {
       setPasswordError('密码长度至少为8个字符');
       setPasswordStatus('error');
       return;
     }
-    
-    const success = await changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-    
-    if (success) {
+
+    try {
+      await changePassword(passwordForm.oldPassword, passwordForm.newPassword);
       setPasswordStatus('success');
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setPasswordStatus('idle'), 2000);
-    } else {
-      setPasswordError('当前密码不正确');
+    } catch (err) {
+      setPasswordError(err instanceof ApiError ? err.message : '密码更新失败');
       setPasswordStatus('error');
     }
   };
@@ -135,7 +156,7 @@ export default function Profile() {
   const handleNotificationToggle = (key: keyof typeof notificationSettings) => {
     updateNotificationSettings({
       [key]: !notificationSettings[key],
-    });
+    }).catch(() => undefined);
   };
 
   const notificationItems = [
@@ -294,8 +315,8 @@ export default function Profile() {
                     className="input h-24 resize-none"
                   />
                 </div>
-                <div className="mt-6 flex items-center gap-4">
-                  <button 
+                <div className="mt-6 flex items-center gap-4 flex-wrap">
+                  <button
                     onClick={handleSaveProfile}
                     disabled={saveStatus === 'saving'}
                     className="btn-primary disabled:opacity-50 flex items-center gap-2"
@@ -308,7 +329,7 @@ export default function Profile() {
                       '保存更改'
                     )}
                   </button>
-                  <button 
+                  <button
                     onClick={handleCancelProfile}
                     className="btn-outline"
                   >
@@ -317,6 +338,11 @@ export default function Profile() {
                   {saveStatus === 'success' && (
                     <span className="text-green-400 text-sm flex items-center gap-1">
                       <Check className="w-4 h-4" /> 个人信息已更新
+                    </span>
+                  )}
+                  {profileError && (
+                    <span className="text-red-400 text-sm flex items-center gap-1">
+                      <X className="w-4 h-4" /> {profileError}
                     </span>
                   )}
                 </div>
